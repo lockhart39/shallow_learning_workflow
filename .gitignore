@@ -3,3 +3,6 @@ __pycache__
 
 # Ignore all notebooks
 *.pynb
+
+# Ignore bash scripts
+*.bash

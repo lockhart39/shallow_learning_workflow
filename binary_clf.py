@@ -1,10 +1,15 @@
 from data_prep_utils import check_for_nulls
 
+from datetime import datetime
 import joblib
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn import metrics, model_selection
+
+
+# used for dating output file names
+date_stamp = datetime.today().strftime('%Y%m%d')
 
 '''
 1) Create dataframe(s) and check for null values then encode categorical features
@@ -70,15 +75,24 @@ for train_index, test_index in skfolds.split(x_train_test, y_train_test):
     roc_auc_kfold_scores['Fold ' + str(counter)] = roc_auc_score
     counter += 1
 
-print(roc_auc_kfold_scores)
+print('ROC AUC Scores from kfolds: \n', roc_auc_kfold_scores)
+
+# x_train_test, x_val, y_train_test, y_val = model_selection.train_test_split(X, y, test_size=0.33)
+x_train, x_test, y_train, y_test = model_selection.train_test_split(
+    x_train_test,
+    y_train_test,
+    test_size=0.33
+)
+
 
 lgb_train = lgb.Dataset(x_train_test, y_train_test)
-lgb_valid = lgb.Dataset(x_val, y_val)
+lgb_test = lgb.Dataset(x_test, y_test)
+
 
 lgb_clf = lgb.train(
     params=lgb_binary_clf_params,
     train_set=lgb_train,
-    valid_sets=[lgb_valid],
+    valid_sets=[lgb_test],
     num_boost_round = 300,
     early_stopping_rounds = 40
 )
@@ -87,4 +101,11 @@ lgb_clf = lgb.train(
 
 val_roc_auc_score = metrics.roc_auc_score(y_true = y_val, y_score = lgb_clf.predict(x_val))
 
-print(val_roc_auc_score)
+print('Validation ROC_AUC_Score: ', val_roc_auc_score)
+
+# save model and timestamp name for later use (joblib.load())
+try:
+    joblib.dump(lgb_clf, 'models/binary_clf_lgb_{dt}.joblib'.format(dt = date_stamp))
+    print('Model successfully saved!')
+except Exception as e:
+    print('Unable to save model using joblib. Exception below: \n')
